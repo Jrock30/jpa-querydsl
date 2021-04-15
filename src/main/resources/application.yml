@@ -12,6 +12,7 @@ spring:
       hibernate:
 #        show_sql: true # System.out 으로 나가는 로그
         format_sql: true
+#        use_sql_comments: true # 이 설정을 하면 실행되는 JPQL을 볼 수 있다.
 
 logging.level:
   org.hibernate.SQL: debug # logger를 통해 하이버네이트 실행 SQL을 남긴다.

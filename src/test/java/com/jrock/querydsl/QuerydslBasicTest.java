@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.EntityManager;
 
+import static com.jrock.querydsl.entity.QMember.*;
 import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest
@@ -53,16 +54,48 @@ public class QuerydslBasicTest {
     @Test
     public void startQuerydsl() {
 //        JPAQueryFactory queryFactory = new JPAQueryFactory(em); // 하나만 생성해서 모든 곳에 공유해도 되므로, @Bean 등록이나, 리포지토리 필드 레벨로 지정해도 무방. 동시성 문제 고민 안해도 됨.
-        QMember m = new QMember("m"); // 인자값은 별칭임 (구분을 위한, 크게 중요하지 않음, 다르게 사용함)
+//        QMember m = new QMember("m"); // 인자값은 별칭임 (구분을 위한, 크게 중요하지 않음, 다르게 사용함), 같은 테이블을 조인할 때 alias 를 따로 주어서 사용하면 된다.
+//        QMember qMember = QMember.member; // 이렇게 스태틱으로 가져올 수 있다.
 
         Member findMember = queryFactory
-                .select(m)
-                .from(m)
-                .where(m.username.eq("member1")) // 파라미터 바인딩 (sql injection 방어를 자동으로 해줌)
+//                .select(QMember.member) // 이렇게 써도 되고 아래처럼 스태틱 임포트해서 사용해도 된다.
+                .select(member) // 스태틱 임포트 권장
+                .from(member)
+                .where(member.username.eq("member1")) // 파라미터 바인딩 (sql injection 방어를 자동으로 해줌)
                 .fetchOne();
 
         assertThat(findMember.getUsername()).isEqualTo("member1");
     }
+
+    @Test
+    public void search() throws Exception {
+        Member findMember = queryFactory
+                .selectFrom(member)
+                .where(member.username.eq("member1")
+                        .and(member.age.eq(10)))
+                .fetchOne();
+
+        assertThat(findMember.getUsername()).isEqualTo("member1");
+    }
+
+    @Test
+    public void searchParam() throws Exception {
+        /**
+         * where() 에 파라미터로 검색조건을 추가하면 AND 조건이 추가됨
+         * 이 경우 null 값은무시 메서드 추출을 활용해서 동적쿼리를 깔끔하게 만들 수 있음
+         */
+        Member findMember = queryFactory
+                .selectFrom(member)
+                .where(
+                        member.username.eq("member1"),
+                        member.age.eq(10) // .and 대신 , 로 끊으면 and 가 붙는다.
+                )
+                .fetchOne();
+
+        assertThat(findMember.getUsername()).isEqualTo("member1");
+    }
+
+
 
     @BeforeEach
     public void before() {
