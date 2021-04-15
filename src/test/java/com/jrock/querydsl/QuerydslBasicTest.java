@@ -3,6 +3,7 @@ package com.jrock.querydsl;
 import com.jrock.querydsl.entity.Member;
 import com.jrock.querydsl.entity.QMember;
 import com.jrock.querydsl.entity.Team;
+import com.querydsl.core.QueryResults;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import org.aspectj.lang.annotation.Before;
 import org.assertj.core.api.Assertions;
@@ -13,6 +14,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.EntityManager;
+
+import java.util.List;
 
 import static com.jrock.querydsl.entity.QMember.*;
 import static org.assertj.core.api.Assertions.*;
@@ -93,6 +96,36 @@ public class QuerydslBasicTest {
                 .fetchOne();
 
         assertThat(findMember.getUsername()).isEqualTo("member1");
+    }
+
+    @Test
+    public void resultFetch() throws Exception {
+
+        List<Member> fetch = queryFactory
+                .selectFrom(member)
+                .fetch();
+
+//        Member fetchOne = queryFactory
+//                .selectFrom(member)
+//                .fetchOne();
+
+        Member fetchFirst = queryFactory
+                .selectFrom(member)
+                .fetchFirst();
+
+        // 이렇게 되면 쿼리가 두번 실행 됨. select 카운터 쿼리, select 쿼리, 페이징 성능이 중요하면 이거 말고 카운터 쿼리 따로 select 쿼리 따로 직접 날리자.
+        QueryResults<Member> results = queryFactory
+                .selectFrom(member)
+                .fetchResults();
+
+        results.getTotal(); //
+        List<Member> content = results.getResults(); // 이렇게 해야 데이터가 나옴.
+
+        // 카운트 쿼리만 나감.
+        long total = queryFactory
+                .selectFrom(member)
+                .fetchCount();
+
     }
 
 
