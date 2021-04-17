@@ -7,11 +7,14 @@ import com.jrock.querydsl.entity.Member;
 import com.jrock.querydsl.entity.QMember;
 import com.jrock.querydsl.entity.QTeam;
 import com.jrock.querydsl.entity.Team;
+import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.ExpressionUtils;
+import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
@@ -31,6 +34,7 @@ import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 import static com.jrock.querydsl.entity.QMember.*;
 import static com.jrock.querydsl.entity.QTeam.*;
@@ -752,6 +756,113 @@ public class QuerydslBasicTest {
             System.out.println("memberDto = " + memberDto);
         }
     }
+
+    /**
+     * 동적 쿼리 - BooleanBuilder 사용
+     */
+    @Test
+    public void dynamicQuery_BooleanBuilder() throws Exception {
+        String usernameParam = "member1";
+        Integer ageParam = null;
+
+        List<Member> result = searchMember1(usernameParam, ageParam);
+
+        assertThat(result.size()).isEqualTo(1);
+
+    }
+
+    private List<Member> searchMember1(String usernameCond, Integer ageCond) {
+
+        BooleanBuilder builder = new BooleanBuilder();
+//        BooleanBuilder builder = new BooleanBuilder(member.username.eq(usernameCond)); // 이렇게 초기 값을 넣을 수 있다. (앞에 미리 방어 코드를 넣었으면 이렇게 넣어도 좋다)
+
+        if (usernameCond != null) {
+            builder.and(member.username.eq(usernameCond));
+        }
+
+        if (ageCond != null) {
+            builder.and(member.age.eq(ageCond));
+        }
+
+        return queryFactory
+                .selectFrom(member)
+                .where(builder)
+                .fetch();
+    }
+
+    /**
+     * 동적 쿼리 - Where 다중 파라미터 사용
+     *
+     * where 조건에 null 값은 무시된다.
+     * 메서드를 다른 쿼리에서도 재활용 할 수 있다.
+     * 쿼리 자체의 가독성이 높아진다.
+     */
+    @Test
+    public void dynamicQuery_WhereParam() throws Exception {
+//        String usernameParam = "member1";
+        String usernameParam = null;
+        Integer ageParam = null;
+
+        List<Member> result = searchMember2(usernameParam, ageParam);
+
+//        assertThat(result.size()).isEqualTo(1);
+
+    }
+
+    private List<Member> searchMember2(String usernameCond, Integer ageCond) {
+
+        return queryFactory
+                .selectFrom(member)
+//                .where(usernameEq(usernameCond), ageEq(ageCond)) // null 이 들어오면 무시된다.
+                .where(allEq2(usernameCond, ageCond)) // 첫번째 null 만 주의하도록 하자.
+                .fetch();
+    }
+
+    private BooleanExpression usernameEq(String usernameCond) {
+        return usernameCond != null ? member.username.eq(usernameCond) : null; // // 간단하면 삼항연산자로
+
+//        if (usernameCond == null) {
+//            return null;
+//        } else {
+//            return member.username.eq(usernameCond);
+//        }
+    }
+
+    private BooleanExpression ageEq(Integer ageCond) {
+        return ageCond != null ? member.age.eq(ageCond) : null; // // 간단하면 삼항연산자로
+    }
+
+    private BooleanExpression allEq(String usernameCond, Integer ageCond) {
+        // 이렇게 조합하면 편하긴 하나 null 처리는 따로 해주어야 한다.(테스트 해보니 첫번째 것만 널이 나오지 않으면 된다. where 1=1 느낌)
+        return usernameEq(usernameCond).and(ageEq(ageCond));
+    }
+
+    /**
+     * BooleanExpression allEq() 와 같이 반환하면 null 이 반환되면 체이닝이 .and() 에러 발생 할 수 있다.
+     * 아래와 같이 BooleanBuilder 를 리턴하여 null 을 무시하게끔 사용할 수 있다.
+     */
+    private BooleanBuilder allEq2(String usernameCond, Integer ageCond) {
+        return usernameEq2(usernameCond).and(ageEq2(ageCond));
+    }
+
+    private BooleanBuilder ageEq2(Integer age) {
+        return nullSafeBuilder(() -> member.age.eq(age));
+    }
+
+    private BooleanBuilder usernameEq2(String username) {
+        return nullSafeBuilder(() -> member.username.eq(username));
+    }
+
+    // 공통 유틸로 만들 경우 public 으로 해서 제공
+    public static BooleanBuilder nullSafeBuilder(Supplier<BooleanExpression> f) {
+        try {
+            return new BooleanBuilder(f.get());
+        } catch (IllegalArgumentException e) {
+            return new BooleanBuilder();
+        }
+    }
+
+
 
     @BeforeEach
     public void before() {
