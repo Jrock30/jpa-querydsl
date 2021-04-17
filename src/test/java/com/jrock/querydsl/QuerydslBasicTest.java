@@ -1,5 +1,8 @@
 package com.jrock.querydsl;
 
+import com.jrock.querydsl.dto.MemberDto;
+import com.jrock.querydsl.dto.QMemberDto;
+import com.jrock.querydsl.dto.UserDto;
 import com.jrock.querydsl.entity.Member;
 import com.jrock.querydsl.entity.QMember;
 import com.jrock.querydsl.entity.QTeam;
@@ -7,6 +10,8 @@ import com.jrock.querydsl.entity.Team;
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Expression;
+import com.querydsl.core.types.ExpressionUtils;
+import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
@@ -578,6 +583,173 @@ public class QuerydslBasicTest {
 
         for (String s : result) {
             System.out.println("s = " + s);
+        }
+    }
+
+    /**
+     *  프로젝션과 결과 반환
+     *
+     *  프로젝션 대상이 하나면 타입을 명확하게 지정할 수 있음
+     *  프로젝션 대상이 둘 이상이면 튜플이나 DTO로 조회
+     */
+
+    /**
+     * 프로젝션 대상이 하나
+     */
+    @Test
+    public void simpleProjections() throws Exception {
+//        List<Member> result = queryFactory -> 엔티티를 조회 해도 프로젝션 대상이 하나라고 보면 된다
+        List<String> result = queryFactory
+                .select(member.username)
+                .from(member)
+                .fetch();
+
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+    }
+
+    /**
+     * 튜플 프로젝션
+     *
+     * 프로젝션 대상이 둘 이상일 때 사용
+     * 튜플은 repository 계층에서 사용하는 것은 괜찮은데,
+     * 서비스등 다른 계층에서 사용하는 것은 좋지 않다. 핵심 비즈니스 로직은 리포지터리에만 의존하게끔.
+     * DTO 로 바꾸어서 반환하는 것을 추천.
+     */
+    @Test
+    public void tupleProjection() throws Exception {
+        List<Tuple> result = queryFactory
+                .select(member.username, member.age)
+                .from(member)
+                .fetch();
+
+        for (Tuple tuple : result) {
+            String username = tuple.get(member.username);
+            Integer age = tuple.get(member.age);
+            System.out.println("username = " + username);
+            System.out.println("age = " + age);
+        }
+    }
+
+    /**
+     * 순수 JPA에서 DTO 조회 코드
+     *
+     * 순수 JPA에서 DTO를 조회할 때는 new 명령어를 사용해야함
+     * DTO의 package이름을 다 적어줘야해서 지저분함
+     * 생성자 방식만 지원함
+     */
+    @Test
+    public void findDtoByJPQL() throws Exception {
+        // new operation
+        List<MemberDto> result = em.createQuery("select new com.jrock.querydsl.dto.MemberDto(m.username, m.age) from Member m", MemberDto.class)
+                .getResultList();
+
+        for (MemberDto memberDto : result) {
+            System.out.println("memberDto = " + memberDto);
+        }
+    }
+
+    /**
+     * Querydsl 빈 생성(Bean population)
+     *
+     *   - 프로퍼티 접근 (setter)
+     *   - 필드 직접 접근
+     *   - 접근 생성자 사용
+     */
+    // 프로퍼티 접근(setter)
+    @Test
+    public void findDtoBySetter() throws Exception {
+        List<MemberDto> result = queryFactory
+                .select(Projections.bean(MemberDto.class,  // MemberDto 기본 생성자를 만들어 주어야 한다.
+                        member.username,
+                        member.age))
+                .from(member)
+                .fetch();
+
+        for (MemberDto memberDto : result) {
+            System.out.println("memberDto = " + memberDto);
+        }
+    }
+
+    // 필드 직접 접근
+    @Test
+    public void findDtoByField() throws Exception {
+        List<MemberDto> result = queryFactory
+                .select(Projections.fields(MemberDto.class,  // MemberDto 기본 생성자를 만들어 주어야 한다.
+                        member.username,
+                        member.age))
+                .from(member)
+                .fetch();
+
+        for (MemberDto memberDto : result) {
+            System.out.println("memberDto = " + memberDto);
+        }
+    }
+
+    // 생성자 접근 ( 생성자 타입이 입력값과 맞아야 한다. )
+    @Test
+    public void findDtoByConstructor() throws Exception {
+        List<MemberDto> result = queryFactory
+                .select(Projections.constructor(MemberDto.class,  // MemberDto 기본 생성자를 만들어 주어야 한다.
+                        member.username,
+                        member.age))
+                .from(member)
+                .fetch();
+
+        for (MemberDto memberDto : result) {
+            System.out.println("memberDto = " + memberDto);
+        }
+    }
+
+    /**
+     * 별칭이 다를 때
+     *
+     * 프로퍼티나, 필드 접근 생성 방식에서 이름이 다를 때 해결 방안
+     * ExpressionUtils.as(source,alias) : 필드나, 서브 쿼리에 별칭 사용
+     *
+     * 참고
+     * 1. DTO로 직접 조회하는 이유는 엔티티를 무시하고, 조회용 모델을 바로 만드는 것이 목표. 따라서 중간에 번거롭게 엔티티를 만들 이유가 없다.
+     * 2. 이것은 설계상에 큰 문제는 없지만, 성능에서 차이가 난다.
+     * 결국 리포지토리 계층에서 DTO를 바로 조회할 때는 엔티티를 거치지 않는 것이 더 나은 방법이다.
+     * 다만 리포지토리 계층에서 엔티티를 조회하고, 그 엔티티를 어디선가 DTO로 변환할 때는 이미 엔티티를 조회한 상황이기 때문에 이때는 DTO의 생성자 파라미터를 활용하시는 방법도 괜찮다..
+     */
+    @Test
+    public void findUserDto() throws Exception {
+        QMember memberSub = new QMember("memberSub");
+        List<UserDto> result = queryFactory
+                .select(Projections.fields(UserDto.class,  // MemberDto 기본 생성자를 만들어 주어야 한다.
+                        member.username.as("name"), // 필드에 별칭 적용
+//                        ExpressionUtils.as(member.username, "name"), // 위와 동일
+                        ExpressionUtils.as( // 서브쿼리 알리야스 지정할 때 사용 (서브쿼리,서브쿼리 알리야스)
+                                JPAExpressions // 서브쿼리
+                                    .select(memberSub.age.max())
+                                    .from(memberSub), "age")
+                        ))
+                .from(member)
+                .fetch();
+
+        for (UserDto userDto : result) {
+            System.out.println("userDto = " + userDto);
+        }
+    }
+
+    /**
+     * 생성자 + @QueryProjection
+     *
+     * 이 방법은 컴파일러로 타입을 체크할 수 있으므로 가장 안전한 방법이다.
+     * 다만 DTO에 QueryDSL 어노테이션을 유지해야 하는 점과 DTO까지 Q 파일을 생성해야 하는 단점이 있다.
+     * 아래 QMemberDto 생성자에 없는 데이터를 넣으면 컴파일 에러 갈생
+     */
+    @Test
+    public void findDtoByQueryProjection() throws Exception {
+        List<MemberDto> result = queryFactory
+                .select(new QMemberDto(member.username, member.age))
+                .from(member)
+                .fetch();
+
+        for (MemberDto memberDto : result) {
+            System.out.println("memberDto = " + memberDto);
         }
     }
 
