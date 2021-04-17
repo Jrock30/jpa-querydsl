@@ -32,3 +32,13 @@
   > >
   > > - spring-test: 스프링 통합 테스트 지원
 - Querydsl 설정
+- Querydsl 활용
+  * 검색조건, 정렬, 페이징, 집합, 조인, 서브쿼리, Case문, 상수/문자 더하기
+  * 프로젝션 결과 반환
+    * DTO, @QueryProjection
+  * 동적쿼리
+    * BooleanBuilder
+    * where 다중 파라미터
+  * 수정, 삭제 벌크 연산
+  * SQL Function 호출
+  
