@@ -27,6 +27,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.Commit;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.EntityManager;
@@ -862,7 +863,92 @@ public class QuerydslBasicTest {
         }
     }
 
+    /**
+     * 수정, 삭제 벌크 연산
+     *
+     *  주의:
+     *  JPQL 배치와 마찬가지로, 영속성 컨텍스트에 있는 엔티티를 무시하고 실행되기 때문에
+     *  배치 쿼리를 실행하고 나면 영속성 컨텍스트를 초기화 하는 것이 안전하다.
+     */
+    @Test
+    public void bulkUpdate() throws Exception {
 
+        long count = queryFactory
+                .update(member)
+                .set(member.username, "비회원")
+                .where(member.age.lt(28))
+                .execute();
+
+        // 벌크 연산을 하면 그냥 flush 와 clear를 해주어서 영속성 컨텍스트를 맞추어 주는 것이 좋다.
+        // 이것을 안하면 업데이트 전 데이터가 아래에 찍힘
+        em.flush();
+        em.clear();
+
+        List<Member> result = queryFactory
+                .selectFrom(member)
+                .fetch();
+
+        for (Member member1 : result) {
+            System.out.println("member1 = " + member1);
+        }
+    }
+
+    // 기존 숫자에 1더하기, 곱하기
+    @Test
+    public void bulkAdd() throws Exception {
+        queryFactory
+                .update(member)
+                .set(member.age, member.age.multiply(2)) // 곱하기
+//                .set(member.age, member.age.add(1))    // 더하기
+                .execute();
+    }
+
+    // 삭제
+    @Test
+    public void bulkDelete() throws Exception {
+
+        long count = queryFactory
+                .delete(member)
+                .where(member.age.gt(18))
+                .execute();
+    }
+
+    /**
+     * SQL function 호출하기
+     *
+     * SQL function은 JPA와 같이 Dialect에 등록된 내용만 호출할 수 있다.
+     */
+    // member M으로 변경하는 replace 함수 사용
+    @Test
+    public void sqlFunction() throws Exception {
+        List<String> result = queryFactory
+                .select(Expressions.stringTemplate(
+                        "function('replace', {0}, {1}, {2})",
+                        member.username, "member", "M"))
+                .from(member)
+                .fetch();
+
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+    }
+
+    // 소문자로 변경
+    @Test
+    public void sqlFunction2() throws Exception {
+        List<String> result = queryFactory
+                .select(member.username)
+                .from(member)
+//                .where(member.username.eq(Expressions.stringTemplate(
+//                        "function('lower', {0})",
+//                        member.username)))
+                .where(member.username.eq(member.username.lower())) // 간단한건 이렇게 표준으로 내장하고 있는 경우가 많다.
+                .fetch();
+
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+    }
 
     @BeforeEach
     public void before() {
