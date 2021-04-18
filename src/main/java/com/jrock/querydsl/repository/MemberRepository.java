@@ -13,5 +13,4 @@ public interface MemberRepository extends JpaRepository<Member, Long>, MemberRep
     // select m from Member m where m.username = ?
     List<Member> findByUsername(String username);
 
-
 }

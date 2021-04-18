@@ -50,6 +50,7 @@
 - - -
 - Spring Data Jpa 와 Querydsl (Repository 생성)
   * 사용자 정의 리포지토리
+  * 스프링 데이터 페이징 - Querydsl 페이징 연동
   
   
 
