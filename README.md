@@ -32,7 +32,7 @@
   > >
   > > - spring-test: 스프링 통합 테스트 지원
 - Querydsl 설정
-- Querydsl 활용
+- Querydsl 활용 (TEST 예제 코드 활용)
   * 검색조건, 정렬, 페이징, 집합, 조인, 서브쿼리, Case문, 상수/문자 더하기
   * 프로젝션 결과 반환
     * DTO, @QueryProjection
@@ -40,5 +40,14 @@
     * BooleanBuilder
     * where 다중 파라미터
   * 수정, 삭제 벌크 연산
-  * SQL Function 호출
+  * SQL Function 호출    
+- - -
+- 실무활용 - 순수 JPA 와 Querydsl (Repository 생성)
+  * 순수 JPA Repository, Querydsl
+    * 동적 쿼리와 성능 최적화 조회 - Builder 사용
+    * 동적 쿼리와 성능 최적화 조회 - Where절 파라미터 사용
+    * 조회 API 컨트롤러 개발
+  
+  
+
   
