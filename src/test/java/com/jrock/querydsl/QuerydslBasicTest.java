@@ -267,9 +267,11 @@ public class QuerydslBasicTest {
 
         List<Member> result = queryFactory
                 .selectFrom(member)
-                .leftJoin(member.team, team)
-//                .join(member.team, team)
+//                .leftJoin(member.team, team)
+                .join(member.team, team)
+//                .fetchJoin()
                 .where(team.name.eq("teamA"))
+//                .distinct()
                 .fetch();
 
         assertThat(result)
