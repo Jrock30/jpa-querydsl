@@ -265,15 +265,22 @@ public class QuerydslBasicTest {
     @Test
     public void join() throws Exception {
 
+//        em.flush();
+//        em.flush();
+
         List<Member> result = queryFactory
                 .selectFrom(member)
 //                .leftJoin(member.team, team)
                 .join(member.team, team)
 //                .fetchJoin()
                 .where(team.name.eq("teamA"))
-//                .distinct()
                 .fetch();
 
+        // fetch join 을 하지 않았음에도 쿼리 조회를 하지 않는 이유는 밑에 insert 한 영속성 컨텍스트가 살아 있어서 이다.
+        // 테스트 해볼 거면 아래의 fetch join 예제를 보아도 되고 위에 clear 해주고 테스트 해보아도 된다.
+        for (Member member1 : result) {
+            System.out.println("member1.getTeam().getName() = " + member1.getTeam().getName());
+        }
         assertThat(result)
                 .extracting("username")
                 .containsExactly("member1", "member2");
@@ -379,6 +386,8 @@ public class QuerydslBasicTest {
                 .where(member.username.eq("member1"))
                 .fetchOne();
 
+//        System.out.println("result = " + result.getTeam().getName());
+
         boolean loaded = emf.getPersistenceUnitUtil().isLoaded(result.getTeam());
         assertThat(loaded).as("페치 조인 미적용.").isFalse();
     }
@@ -398,6 +407,8 @@ public class QuerydslBasicTest {
                 .join(member.team, team).fetchJoin()
                 .where(member.username.eq("member1"))
                 .fetchOne();
+
+//        System.out.println("result = " + result.getTeam().getName());
 
         boolean loaded = emf.getPersistenceUnitUtil().isLoaded(result.getTeam());
         assertThat(loaded).as("페치 조인 적용.").isTrue();
